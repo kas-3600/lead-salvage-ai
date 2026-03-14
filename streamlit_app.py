@@ -10,7 +10,7 @@ class LeadEvaluation(BaseModel):
     older_than_4_months: bool
     response: str
 
-agent = Agent('gemini-3.0-flash', output_type=LeadEvaluation)
+agent = Agent('gemini-3.0', output_type=LeadEvaluation)
 
 # 2. THE WEB INTERFACE (Streamlit)
 st.set_page_config(page_title="Lead Salvage AI", page_icon="💰")
