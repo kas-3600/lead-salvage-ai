@@ -26,8 +26,8 @@ if uploaded_file:
     csv_string = df.to_csv(index=False) # Convert entire sheet to string
     
     if st.button("Recover All Leads"):
-        with st.spinner("AI is processing the entire database..."):
-            prompt = f"""
+        with st.spinner("AI is processing the entire database..."): 
+            result = agent.run_sync(f"""
             Analyze this CSV data. 
             Identify every lead not contacted in >4 months. 
             For each one, write a 2-3 sentence personalized follow-up.
@@ -35,12 +35,10 @@ if uploaded_file:
             
             CSV DATA:
             {csv_string}
-            """
-            
-            result = agent.run_sync(prompt)
+            """)
             
             # Convert the list of Pydantic objects back into a DataFrame
-            output_df = pd.DataFrame([lead.model_dump() for lead in result.data.leads])
+            output_df = pd.DataFrame([lead.model_dump() for lead in result.output.leads])
             
             st.success(f"Found {len(output_df)} leads!")
             st.dataframe(output_df)
