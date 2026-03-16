@@ -6,7 +6,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
-# 1. SETUP THE BRAIN (Same as your main.py)
+# 1. SETUP THE BRAIN 
 class SalvagedLead(BaseModel):
     index: int = Field(description="The original row index from the CSV + 1")
     name: str
@@ -26,21 +26,42 @@ class SalvageBatch(BaseModel):
 
 agent = Agent("google-gla:gemini-3-flash-preview", output_type=SalvageBatch)
 
-# 2. THE WEB INTERFACE (Streamlit)
+# 2. THE WEB INTERFACE
 st.set_page_config(page_title="Lead Salvage AI", page_icon="💰")
 st.title("Lead Salvage & Recovery Tool")
+
+# --- LICENSE GATE LOGIC ---
+# In production, store this in .streamlit/secrets.toml as a list.
+VALID_KEYS = ["BETA_TEST_KEY", "CLIENT_1_KEY"]
+
+st.sidebar.header("Access Control")
+user_key = st.sidebar.text_input("Enter License Key", type="password")
+
+is_authorized = user_key in VALID_KEYS
+
+if not is_authorized:
+    st.error("Valid License Key required to upload and process data.")
+    st.stop() # Halts execution of the rest of the app
+
+# App only renders past this point if authorized
 st.write("Upload your 'dead' leads CSV. We'll find the gold and write the follow-ups.")
-
 uploaded_file = st.file_uploader("Upload your Lead CSV", type=["csv"])
-
 
 def process_bulk_with_continuation(df):
     all_salvaged = []
     start_index = 0
     total_rows = len(df)
     
+    # Initialize Progress UI
+    progress_bar = st.progress(0.0)
+    status_text = st.empty()
+    
     while start_index < total_rows:
-        # Send only the portion of the CSV from the last stopping point
+        # Interpolate progress safely
+        current_progress = min(start_index / total_rows, 1.0)
+        progress_bar.progress(current_progress)
+        status_text.text(f"Processing rows {start_index} to {total_rows}...")
+
         remaining_data = df.iloc[start_index:].to_csv(index=True)
         
         prompt = f"""
@@ -56,20 +77,21 @@ def process_bulk_with_continuation(df):
         {remaining_data}
         """
         
-        with st.spinner(f"Processing batch starting at {start_index}..."):
-            result = agent.run_sync(prompt)
-            batch = result.output
+        result = agent.run_sync(prompt)
+        batch = result.output
+        
+        all_salvaged.extend(batch.leads)
+        
+        if not batch.has_more_leads or batch.last_processed_index >= total_rows - 1:
+            break
             
-            all_salvaged.extend(batch.leads)
-            
-            if not batch.has_more_leads or batch.last_processed_index >= total_rows - 1:
-                break
-                
-            # Update the pointer for the next API call
-            start_index = batch.last_processed_index + 1
-            
+        start_index = batch.last_processed_index + 1
+        
+    # Snap to 100% on completion
+    progress_bar.progress(1.0)
+    status_text.text(f"Complete! Extracted {len(all_salvaged)} leads.")
+    
     return pd.DataFrame([l.model_dump() for l in all_salvaged])
-
 
 
 if uploaded_file:
@@ -77,4 +99,8 @@ if uploaded_file:
     
     if st.button("Recover All Leads"):
         SalvagedLeads = process_bulk_with_continuation(df)
-        st.download_button("Download CSV", SalvagedLeads.to_csv(index=False), "recovered.csv")
+        st.download_button(
+            label="Download Recovered CSV", 
+            data=SalvagedLeads.to_csv(index=False), 
+            file_name="recovered.csv",
+            mime="text/csv")
