@@ -51,7 +51,7 @@ def process_bulk_with_continuation(df):
         
         with st.spinner(f"Processing batch starting at {start_index}..."):
             result = agent.run_sync(prompt)
-            batch = result.data
+            batch = result.output
             
             all_salvaged.extend(batch.leads)
             
