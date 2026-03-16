@@ -8,8 +8,15 @@ from pydantic_ai import Agent
 
 # 1. SETUP THE BRAIN (Same as your main.py)
 class SalvagedLead(BaseModel):
-    index: int = Field(description="The original row index from the CSV")
+    index: int = Field(description="The original row index from the CSV + 1")
     name: str
+    phone: str = Field(description="The phone number, if available")
+    email: str = Field(description="The email address, if available")
+    address: str = Field(description="The address, if available")
+    zip_code: str = Field(description="The zip code, if available")
+    original_notes: str = Field(description="The original notes from the CSV for this lead")
+    last_serviced_date: str = Field(description="The last date this lead was serviced, in YYYY-MM-DD format")
+    last_serviced_date_ago: str = Field(description="How long ago the last service date was, in months")
     personalized_response: str
 
 class SalvageBatch(BaseModel):
