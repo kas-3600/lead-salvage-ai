@@ -52,7 +52,7 @@ def verify_license(key: str) -> bool:
     
     try:
         # DIAGNOSTIC: Let's see what the DB actually sees
-        res = conn.table("Clients").eq("license_key", key).execute()
+        res = conn.table("Clients").select("license_key").eq("license_key", key).execute()
         
         # This will appear in your app to help you debug
         if key:
