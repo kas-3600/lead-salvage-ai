@@ -5,6 +5,9 @@ from typing import List
 from datetime import datetime
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
+from st_supabase_connection import SupabaseConnection
+
+
 
 # 1. SETUP THE BRAIN 
 class SalvagedLead(BaseModel):
@@ -26,22 +29,36 @@ class SalvageBatch(BaseModel):
 
 agent = Agent("google-gla:gemini-3-flash-preview", output_type=SalvageBatch)
 
+
+
+# SETUP SUPABASE CONNECTION 
+conn = st.connection("supabase", type=SupabaseConnection)
+
+
+
 # 2. THE WEB INTERFACE
 st.set_page_config(page_title="Lead Salvage AI", page_icon="💰")
 st.title("Lead Salvage & Recovery Tool")
 
-# --- LICENSE GATE LOGIC ---
-# In production, store this in .streamlit/secrets.toml as a list.
-VALID_KEYS = ["BETA_TEST_KEY", "CLIENT_1_KEY"]
 
+
+# --- LICENSE GATE LOGIC ---
 st.sidebar.header("Access Control")
 user_key = st.sidebar.text_input("Enter License Key", type="password")
 
-is_authorized = user_key in VALID_KEYS
+def verify_license(key: str) -> bool:
+    if not key:
+        return False
+    # Logic: Query Supabase for the key where status is active
+    res = conn.table("licenses").select("status").eq("key", key).eq("status", "active").execute()
+    return len(res.data) > 0
 
-if not is_authorized:
-    st.error("Valid License Key required to upload and process data.")
-    st.stop() # Halts execution of the rest of the app
+if not verify_license(user_key):
+    st.warning("Please enter a valid, active license key.")
+    st.markdown("[Buy a License Key here](https://buy.stripe.com/6oU00igzTaRb6dDe7i2Ji00)")
+    st.stop()
+
+
 
 # App only renders past this point if authorized
 st.write("Upload your 'dead' leads CSV. We'll find the gold and write the follow-ups.")
@@ -92,6 +109,7 @@ def process_bulk_with_continuation(df):
     status_text.text(f"Complete! Extracted {len(all_salvaged)} leads.")
     
     return pd.DataFrame([l.model_dump() for l in all_salvaged])
+
 
 
 if uploaded_file:
