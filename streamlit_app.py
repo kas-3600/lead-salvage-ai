@@ -49,9 +49,25 @@ user_key = st.sidebar.text_input("Enter License Key", type="password")
 def verify_license(key: str) -> bool:
     if not key:
         return False
-    # Logic: Query Supabase for the key where status is active
-    res = conn.table("Clients").select("status").eq("license_key", key).eq("status", "active").execute()
-    return len(res.data) > 0
+    
+    try:
+        # DIAGNOSTIC: Let's see what the DB actually sees
+        res = conn.table("Clients").select("status").eq("license_key", key).execute()
+        
+        # This will appear in your app to help you debug
+        if key:
+            with st.expander("Debug: Database Response"):
+                st.write(f"Querying for key: {key}")
+                st.write(f"Data found: {res.data}")
+        
+        # Check if we found the key AND if it is active
+        if len(res.data) > 0:
+            return res.data[0].get("status") == "active"
+        return False
+        
+    except Exception as e:
+        st.error(f"Database Connection Error: {e}")
+        return False
 
 if not verify_license(user_key):
     st.warning("Please enter a valid, active license key.")
