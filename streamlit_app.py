@@ -50,7 +50,7 @@ def verify_license(key: str) -> bool:
     if not key:
         return False
     # Logic: Query Supabase for the key where status is active
-    res = conn.table("Clients").select("status").eq("key", key).eq("status", "active").execute()
+    res = conn.table("Clients").select("status").eq("license_key", key).eq("status", "active").execute()
     return len(res.data) > 0
 
 if not verify_license(user_key):
