@@ -2,3 +2,4 @@ streamlit
 pandas
 pydantic-ai
 google-generativeai
+st_supabase_connection
